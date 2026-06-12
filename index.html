@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>8STONE บันทึกการขาย</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: #F7F5F2;
+    min-height: 100vh;
+    padding-bottom: 48px;
+  }
+
+  .header {
+    background: #8B1A1A;
+    padding: 20px 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-brand { font-size: 11px; letter-spacing: 3px; color: #E8857A; text-transform: uppercase; margin-bottom: 2px; }
+  .header-title { font-size: 20px; font-weight: 700; color: #FFFFFF; }
+  .progress-bar { height: 3px; background: #5C0F0F; margin-top: 14px; border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #E8857A; border-radius: 2px; transition: width 0.4s ease; }
+
+  .section { padding: 20px 20px 0; }
+  .section-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #999; margin-bottom: 10px; }
+  .section-title { font-size: 17px; font-weight: 700; color: #1A1A1A; margin-bottom: 14px; }
+
+  .btn-grid { display: grid; gap: 10px; }
+  .btn-grid.col-2 { grid-template-columns: 1fr 1fr; }
+
+  .choice-btn {
+    background: #FFFFFF;
+    border: 2px solid #E0DDD8;
+    border-radius: 12px;
+    padding: 14px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    font-family: inherit;
+  }
+  .choice-btn:active { transform: scale(0.97); }
+  .choice-btn.selected { background: #8B1A1A; border-color: #8B1A1A; color: #FFFFFF; }
+  .btn-emoji { font-size: 18px; display: block; margin-bottom: 4px; }
+
+  .divider { height: 1px; background: #E8E4DF; margin: 20px 20px 0; }
+
+  .field-input {
+    width: 100%;
+    background: #FFFFFF;
+    border: 2px solid #E0DDD8;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 16px;
+    font-family: inherit;
+    color: #1A1A1A;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: #8B1A1A; }
+  .field-input::placeholder { color: #BBBBBB; }
+
+  .amount-wrap { position: relative; }
+  .amount-prefix { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 15px; font-weight: 700; color: #666; pointer-events: none; }
+  .field-input.has-prefix { padding-left: 42px; }
+
+  /* hidden sections */
+  .sale-only { display: none; }
+  .sale-only.visible { display: block; }
+
+  /* Photo upload */
+  .photo-upload-area {
+    border: 2px dashed #C8C4BF;
+    border-radius: 12px;
+    background: #FFFFFF;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .photo-upload-area:active { background: #F0EDE8; }
+  .photo-upload-area.has-photo { border-style: solid; border-color: #8B1A1A; padding: 0; overflow: hidden; }
+  .photo-upload-area .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .photo-upload-area .upload-label { font-size: 14px; font-weight: 600; color: #555; }
+  .photo-upload-area .upload-sub { font-size: 12px; color: #AAA; margin-top: 4px; }
+  #photoInput { display: none; }
+
+  .photo-preview {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+    display: none;
+  }
+  .photo-preview.show { display: block; }
+
+  .photo-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .photo-remove.show { display: flex; }
+
+  .optional-tag {
+    display: inline-block;
+    background: #FDECEA;
+    color: #9B2222;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* Submit */
+  .submit-wrap { padding: 24px 20px 0; }
+  .submit-btn {
+    width: 100%;
+    background: #8B1A1A;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 14px;
+    padding: 18px;
+    font-size: 17px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .submit-btn:active { transform: scale(0.98); background: #5C0F0F; }
+  .submit-btn:disabled { background: #BBBBBB; cursor: not-allowed; transform: none; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(45,80,22,0.85);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 4px solid rgba(255,255,255,0.3);
+    border-top-color: #E8857A;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 15px; font-weight: 600; }
+
+  /* Success */
+  .success-screen { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 24px; text-align: center; }
+  .success-screen.show { display: flex; }
+  .main-form.hide { display: none; }
+
+  .success-icon { width: 72px; height: 72px; background: #8B1A1A; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 20px; }
+  .success-title { font-size: 22px; font-weight: 700; color: #1A1A1A; margin-bottom: 8px; }
+  .success-sub { font-size: 14px; color: #888; margin-bottom: 28px; }
+  .success-card { background: #FFFFFF; border-radius: 16px; padding: 20px; width: 100%; max-width: 320px; text-align: left; border: 1px solid #E8E4DF; }
+  .success-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #F0EDE8; }
+  .success-row:last-child { border-bottom: none; }
+  .success-row-label { color: #888; }
+  .success-row-value { font-weight: 600; color: #1A1A1A; text-align: right; max-width: 65%; word-break: break-all; }
+  .success-photo { width: 100%; border-radius: 12px; margin-top: 16px; max-height: 180px; object-fit: cover; display: none; }
+  .success-photo.show { display: block; }
+
+  .new-btn { margin-top: 24px; background: transparent; border: 2px solid #8B1A1A; color: #8B1A1A; border-radius: 12px; padding: 14px 32px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #C0392B; color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; transition: transform 0.3s ease; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 13px; font-weight: 600; color: #555; padding-left: 4px; }
+</style>
+</head>
+<body>
+
+<div class="main-form" id="mainForm">
+  <div class="header">
+    <div class="header-brand">8STONE Sales</div>
+    <div class="header-title">บันทึกการขาย</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- ขั้นที่ 1 -->
+  <div class="section" style="margin-top:20px;">
+    <div class="section-label">ขั้นที่ 1</div>
+    <div class="section-title">ผลลัพธ์วันนี้เป็นยังไง?</div>
+    <div class="btn-grid col-2">
+      <button class="choice-btn" onclick="select('result','ขาย',this)" data-group="result">
+        <span class="btn-emoji">✅</span>ขาย
+      </button>
+      <button class="choice-btn" onclick="select('result','มาดูไว้ก่อน',this)" data-group="result">
+        <span class="btn-emoji">👀</span>มาดูไว้ก่อน
+      </button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ขั้นที่ 2 -->
+  <div class="section" style="margin-top:20px;">
+    <div class="section-label">ขั้นที่ 2</div>
+    <div class="section-title">ลูกค้ารู้จักเราจากไหน?</div>
+    <div class="btn-grid col-2">
+      <button class="choice-btn" onclick="select('source','Facebook',this)" data-group="source"><span class="btn-emoji">📘</span>Facebook</button>
+      <button class="choice-btn" onclick="select('source','TikTok',this)" data-group="source"><span class="btn-emoji">🎵</span>TikTok</button>
+      <button class="choice-btn" onclick="select('source','LINE',this)" data-group="source"><span class="btn-emoji">💬</span>LINE</button>
+      <button class="choice-btn" onclick="select('source','Google',this)" data-group="source"><span class="btn-emoji">🔍</span>Google</button>
+      <button class="choice-btn" onclick="select('source','ป้ายร้าน',this)" data-group="source"><span class="btn-emoji">🪧</span>ป้ายร้าน</button>
+      <button class="choice-btn" onclick="select('source','บอกต่อ',this)" data-group="source"><span class="btn-emoji">👥</span>บอกต่อ</button>
+      <button class="choice-btn" onclick="select('source','ไม่รู้',this)" data-group="source" style="grid-column:span 2;"><span class="btn-emoji">❓</span>ไม่รู้</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ขั้นที่ 3 -->
+  <div class="section" style="margin-top:20px;">
+    <div class="section-label">ขั้นที่ 3 <span class="optional-tag">ไม่บังคับ</span></div>
+    <div class="section-title">ข้อมูลลูกค้า</div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div class="field-group">
+        <div class="field-label">👤 ชื่อลูกค้า</div>
+        <input class="field-input" type="text" id="customerName" placeholder="เช่น คุณสมชาย" autocomplete="off">
+      </div>
+      <div class="field-group">
+        <div class="field-label">💬 ชื่อ LINE</div>
+        <input class="field-input" type="text" id="customerLine" placeholder="เช่น @somchai99" autocomplete="off">
+      </div>
+      <div class="field-group">
+        <div class="field-label">📘 ชื่อ Facebook</div>
+        <input class="field-input" type="text" id="customerFacebook" placeholder="เช่น Somchai Jaidee" autocomplete="off">
+      </div>
+      <div class="field-group">
+        <div class="field-label">📞 เบอร์โทร</div>
+        <input class="field-input" type="tel" id="customerPhone" placeholder="เช่น 081-234-5678" inputmode="tel" autocomplete="off">
+      </div>
+      <div class="field-group">
+        <div class="field-label">📝 หมายเหตุ</div>
+        <textarea class="field-input" id="customerNote" placeholder="เช่น สนใจหินกรวด / จะมาอีกอาทิตย์หน้า" rows="3" style="resize:none; line-height:1.5;"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ขั้นที่ 4 — ยอดขาย (เฉพาะ ขาย) -->
+  <div class="section sale-only" id="amountSection" style="margin-top:20px;">
+    <div class="section-label">ขั้นที่ 4</div>
+    <div class="section-title">ยอดขาย</div>
+    <div class="amount-wrap">
+      <span class="amount-prefix">฿</span>
+      <input class="field-input has-prefix" type="number" id="saleAmount" placeholder="0" inputmode="numeric" oninput="updateProgress()">
+    </div>
+  </div>
+
+  <!-- divider 4→5 (เฉพาะ ขาย) -->
+  <div class="divider sale-only" id="divider45"></div>
+
+  <!-- ขั้นที่ 5 — รูปสินค้า (เฉพาะ ขาย) -->
+  <div class="section sale-only" id="photoSection" style="margin-top:20px;">
+    <div class="section-label">ขั้นที่ 5 <span class="optional-tag">ไม่บังคับ</span></div>
+    <div class="section-title">รูปสินค้า / งานที่ขาย</div>
+    <div class="photo-upload-area" id="photoArea" onclick="document.getElementById('photoInput').click()">
+      <div id="uploadPlaceholder">
+        <div class="upload-icon">📷</div>
+        <div class="upload-label">กดเพื่อเลือกรูป</div>
+        <div class="upload-sub">JPG, PNG — ไม่เกิน 10MB</div>
+      </div>
+      <img class="photo-preview" id="photoPreview" alt="preview">
+      <button class="photo-remove" id="photoRemove" onclick="removePhoto(event)">✕</button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" onchange="handlePhoto(event)">
+  </div>
+
+  <div class="submit-wrap">
+    <button class="submit-btn" id="submitBtn" onclick="submitForm()" disabled>บันทึก</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">กำลังบันทึก...</div>
+</div>
+
+<!-- Success -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">✅</div>
+  <div class="success-title">บันทึกแล้ว!</div>
+  <div class="success-sub" id="successTime"></div>
+  <div class="success-card">
+    <div id="successRows"></div>
+    <img class="success-photo" id="successPhoto" alt="sale photo">
+  </div>
+  <button class="new-btn" onclick="resetForm()">+ บันทึกรายการใหม่</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const LIFF_ID  = "YOUR_LIFF_ID";
+  const GAS_URL  = "YOUR_GAS_WEBHOOK_URL";
+
+  const form = { result: null, source: null, photoBase64: null, photoMime: null };
+
+  window.addEventListener('load', async () => {
+    try { await liff.init({ liffId: LIFF_ID }); } catch(e) { console.log("LIFF preview mode"); }
+  });
+
+  // ── SELECT BUTTONS ──────────────────────────────────────────
+  function select(group, value, el) {
+    form[group] = value;
+    document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+
+    if (group === 'result') {
+      const isSale = value === 'ขาย';
+      ['amountSection','divider45','photoSection'].forEach(id => {
+        document.getElementById(id).classList.toggle('visible', isSale);
+      });
+      if (!isSale) {
+        document.getElementById('saleAmount').value = '';
+        removePhoto(null);
+      }
+    }
+    updateProgress();
+  }
+
+  // ── PROGRESS ────────────────────────────────────────────────
+  function updateProgress() {
+    const hasResult   = !!form.result;
+    const hasSource   = !!form.source;
+    const isSale      = form.result === 'ขาย';
+    const hasAmount   = parseFloat(document.getElementById('saleAmount').value) > 0;
+
+    const total  = isSale ? 3 : 2;
+    let filled   = [hasResult, hasSource].filter(Boolean).length;
+    if (isSale && hasAmount) filled++;
+
+    document.getElementById('progressFill').style.width = Math.round(filled/total*100) + '%';
+    document.getElementById('submitBtn').disabled = !(hasResult && hasSource && (!isSale || hasAmount));
+  }
+
+  // ── PHOTO ────────────────────────────────────────────────────
+  function handlePhoto(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showToast('รูปใหญ่เกิน 10MB ครับ'); return; }
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      form.photoBase64 = dataUrl.split(',')[1];
+      form.photoMime   = file.type;
+
+      const preview = document.getElementById('photoPreview');
+      const area    = document.getElementById('photoArea');
+      const remove  = document.getElementById('photoRemove');
+      const placeholder = document.getElementById('uploadPlaceholder');
+
+      preview.src = dataUrl;
+      preview.classList.add('show');
+      remove.classList.add('show');
+      area.classList.add('has-photo');
+      placeholder.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removePhoto(e) {
+    if (e) e.stopPropagation();
+    form.photoBase64 = null;
+    form.photoMime   = null;
+    document.getElementById('photoInput').value = '';
+    document.getElementById('photoPreview').classList.remove('show');
+    document.getElementById('photoRemove').classList.remove('show');
+    document.getElementById('photoArea').classList.remove('has-photo');
+    document.getElementById('uploadPlaceholder').style.display = '';
+  }
+
+  // ── SUBMIT ───────────────────────────────────────────────────
+  async function submitForm() {
+    showLoading('กำลังบันทึก...');
+
+    const payload = {
+      result:       form.result,
+      source:       form.source,
+      customerName:     document.getElementById('customerName').value.trim() || '',
+      customerLine:     document.getElementById('customerLine').value.trim() || '',
+      customerFacebook: document.getElementById('customerFacebook').value.trim() || '',
+      customerPhone:    document.getElementById('customerPhone').value.trim() || '',
+      customerNote:     document.getElementById('customerNote').value.trim() || '',
+      amount:       form.result === 'ขาย' ? parseFloat(document.getElementById('saleAmount').value) : 0,
+      timestamp:    new Date().toISOString(),
+      photoBase64:  form.photoBase64 || null,
+      photoMime:    form.photoMime   || null
+    };
+
+    try {
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      hideLoading();
+      showSuccess(payload, data.photoUrl || null);
+    } catch(err) {
+      // fallback: no-cors mode (ไม่ได้รับ response แต่ GAS ยังบันทึกได้)
+      try {
+        await fetch(GAS_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        hideLoading();
+        showSuccess(payload, null);
+      } catch(e2) {
+        hideLoading();
+        showToast('เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
+        document.getElementById('submitBtn').disabled = false;
+      }
+    }
+  }
+
+  // ── SUCCESS ──────────────────────────────────────────────────
+  function showSuccess(data, photoUrl) {
+    document.getElementById('mainForm').classList.add('hide');
+    document.getElementById('successScreen').classList.add('show');
+
+    const now = new Date();
+    document.getElementById('successTime').textContent =
+      now.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'}) + ' · ' +
+      now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) + ' น.';
+
+    const customerParts = [data.customerName, data.customerLine, data.customerFacebook, data.customerPhone].filter(Boolean);
+    const rows = [
+      ['ผลลัพธ์', data.result],
+      ['ที่มา',   data.source],
+    ];
+    if (data.customerName)     rows.push(['ชื่อลูกค้า', data.customerName]);
+    if (data.customerLine)     rows.push(['LINE',        data.customerLine]);
+    if (data.customerFacebook) rows.push(['Facebook',    data.customerFacebook]);
+    if (data.customerPhone)    rows.push(['เบอร์โทร',    data.customerPhone]);
+    if (data.customerNote)     rows.push(['หมายเหตุ',    data.customerNote]);
+    if (data.result === 'ขาย') rows.push(['ยอดขาย', '฿' + data.amount.toLocaleString()]);
+
+    document.getElementById('successRows').innerHTML = rows.map(([l,v]) =>
+      `<div class="success-row"><span class="success-row-label">${l}</span><span class="success-row-value">${v}</span></div>`
+    ).join('');
+
+    if (photoUrl) {
+      const img = document.getElementById('successPhoto');
+      img.src = photoUrl;
+      img.classList.add('show');
+    }
+    if (data.photoBase64 && !photoUrl) {
+      const img = document.getElementById('successPhoto');
+      img.src = 'data:' + data.photoMime + ';base64,' + data.photoBase64;
+      img.classList.add('show');
+    }
+  }
+
+  // ── RESET ────────────────────────────────────────────────────
+  function resetForm() {
+    form.result = null; form.source = null; form.photoBase64 = null; form.photoMime = null;
+    document.getElementById('customerName').value = '';
+    document.getElementById('customerLine').value = '';
+    document.getElementById('customerFacebook').value = '';
+    document.getElementById('customerPhone').value = '';
+    document.getElementById('customerNote').value = '';
+    document.getElementById('saleAmount').value = '';
+    document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+    ['amountSection','divider45','photoSection'].forEach(id => document.getElementById(id).classList.remove('visible'));
+    removePhoto(null);
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = 'บันทึก';
+    document.getElementById('successPhoto').classList.remove('show');
+    document.getElementById('mainForm').classList.remove('hide');
+    document.getElementById('successScreen').classList.remove('show');
+  }
+
+  // ── HELPERS ──────────────────────────────────────────────────
+  function showLoading(msg) {
+    document.getElementById('loadingText').textContent = msg;
+    document.getElementById('loadingOverlay').classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+  }
+  function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>
